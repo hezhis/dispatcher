@@ -84,5 +84,5 @@ func (m *monitor) start() {
 }
 
 func init() {
-	getMonitor().start()
+	go getMonitor().start()
 }
