@@ -39,8 +39,12 @@ func NewDispatcher[T comparable](name string, queueSize int, logger Logger, opts
 	}
 }
 
-func (d *Dispatcher[T]) RegisterHandler(id T, handler MessageHandler[T]) {
+func (d *Dispatcher[T]) RegisterHandler(id T, handler MessageHandler[T]) error {
+	if _, ok := d.handlers[id]; ok {
+		return fmt.Errorf("dispatcher[%s] handler for message type: %s already exists", d.name, id)
+	}
 	d.handlers[id] = handler
+	return nil
 }
 
 func (d *Dispatcher[T]) Dispatch(msg Message[T]) {
