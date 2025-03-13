@@ -82,3 +82,7 @@ func (m *monitor) start() {
 		}
 	}
 }
+
+func init() {
+	getMonitor().start()
+}
