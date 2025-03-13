@@ -36,10 +36,7 @@ func TestDispatcher_Dispatch(t *testing.T) {
 		}
 	}()
 
-	p.Dispatch(&addHandler[int]{
-		ID:      1,
-		Payload: Args{Count: 10026},
-	})
+	p.Dispatch(1, Args{Count: 10026})
 	time.Sleep(time.Second)
 	log.Println(p.getCurMessage())
 
@@ -52,16 +49,7 @@ type Args struct {
 	Count int64
 }
 
-type addHandler[T int] struct {
-	ID      T
-	Payload Args
-}
-
-func (a *addHandler[T]) MessageID() T {
-	return a.ID
-}
-
-func Handle(message Message[int]) {
-	log.Printf("handle: %v\n", message)
+func Handle(args ...interface{}) {
+	log.Printf("handle: %v\n", args)
 	time.Sleep(time.Second * 5)
 }

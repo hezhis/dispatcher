@@ -7,17 +7,11 @@ import (
 	"time"
 )
 
-type Message[T comparable] interface {
-	MessageID() T
-}
-
-type MessageHandler[T comparable] func(message Message[T])
-
 type Dispatcher[T comparable] struct {
 	name     string
 	opts     *Option
-	handlers map[T]MessageHandler[T]
-	queue    chan Message[T]
+	handlers map[T]MessageHandler
+	queue    chan *message[T]
 
 	logger Logger
 
@@ -26,7 +20,7 @@ type Dispatcher[T comparable] struct {
 	wg sync.WaitGroup
 
 	curMessageMutex sync.RWMutex
-	curMessage      Message[T]
+	curMessage      *message[T]
 }
 
 func NewDispatcher[T comparable](name string, queueSize int, logger Logger, opts *Option) *Dispatcher[T] {
@@ -34,24 +28,27 @@ func NewDispatcher[T comparable](name string, queueSize int, logger Logger, opts
 		name:     name,
 		logger:   logger,
 		opts:     opts,
-		handlers: make(map[T]MessageHandler[T]),
-		queue:    make(chan Message[T], queueSize),
+		handlers: make(map[T]MessageHandler),
+		queue:    make(chan *message[T], queueSize),
 	}
 }
 
-func (d *Dispatcher[T]) RegisterHandler(id T, handler MessageHandler[T]) error {
+func (d *Dispatcher[T]) RegisterHandler(id T, handler MessageHandler) error {
 	if _, ok := d.handlers[id]; ok {
-		return fmt.Errorf("dispatcher[%s] handler for message type: %s already exists", d.name, id)
+		return fmt.Errorf("dispatcher[%s] handler for message id: %v already exists", d.name, id)
 	}
 	d.handlers[id] = handler
 	return nil
 }
 
-func (d *Dispatcher[T]) Dispatch(msg Message[T]) {
+func (d *Dispatcher[T]) Dispatch(id T, args ...interface{}) {
 	if d.stopped.Load() {
 		return
 	}
-	d.queue <- msg
+	d.queue <- &message[T]{
+		MessageID: id,
+		Args:      args,
+	}
 }
 
 func (d *Dispatcher[T]) Start() error {
@@ -88,7 +85,7 @@ EndLoop:
 			if !ok {
 				break EndLoop
 			}
-			if d.single([]Message[T]{rec}) {
+			if d.single([]*message[T]{rec}) {
 				break EndLoop
 			}
 		case <-doLoopFuncTk.C:
@@ -113,7 +110,7 @@ func (d *Dispatcher[T]) Stop() {
 	d.logger.LogInfo("dispatcher %s stop", d.name)
 }
 
-func (d *Dispatcher[T]) single(list []Message[T]) (exit bool) {
+func (d *Dispatcher[T]) single(list []*message[T]) (exit bool) {
 	list, exit = d.fetchQueue(list)
 
 	d.opts.loopFunc()
@@ -126,7 +123,7 @@ func (d *Dispatcher[T]) single(list []Message[T]) (exit bool) {
 	return
 }
 
-func (d *Dispatcher[T]) fetchQueue(list []Message[T]) ([]Message[T], bool) {
+func (d *Dispatcher[T]) fetchQueue(list []*message[T]) ([]*message[T], bool) {
 	t := time.Now()
 	for {
 		select {
@@ -147,12 +144,12 @@ func (d *Dispatcher[T]) fetchQueue(list []Message[T]) ([]Message[T], bool) {
 	}
 }
 
-func (d *Dispatcher[T]) handleMessage(message Message[T]) {
+func (d *Dispatcher[T]) handleMessage(message *message[T]) {
 	d.setCurMessage(message)
 	defer d.setCurMessage(nil)
 
 	t := time.Now()
-	id := message.MessageID()
+	id := message.MessageID
 
 	defer func() {
 		if since := time.Since(t); since > d.opts.slowTime {
@@ -171,7 +168,7 @@ func (d *Dispatcher[T]) handleMessage(message Message[T]) {
 	}
 }
 
-func (d *Dispatcher[T]) setCurMessage(msg Message[T]) {
+func (d *Dispatcher[T]) setCurMessage(msg *message[T]) {
 	d.curMessageMutex.Lock()
 	defer d.curMessageMutex.Unlock()
 	d.curMessage = msg
@@ -183,5 +180,5 @@ func (d *Dispatcher[T]) getCurMessage() string {
 	if d.curMessage == nil {
 		return ""
 	}
-	return fmt.Sprintf("dispatcher[%s] id:%v, message:%+v", d.name, d.curMessage.MessageID(), d.curMessage)
+	return fmt.Sprintf("dispatcher[%s] id:%v, message:%+v", d.name, d.curMessage.MessageID, d.curMessage)
 }
