@@ -162,7 +162,7 @@ func (d *Dispatcher[T]) handleMessage(message *message[T]) {
 	}()
 
 	if handler, ok := d.handlers[id]; ok {
-		handler(message)
+		handler(message.Args...)
 	} else {
 		d.logger.LogError("No handler for message type: %s", id)
 	}
