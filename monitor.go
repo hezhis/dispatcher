@@ -76,6 +76,7 @@ func (m *monitor) start() {
 					if desc.flag.Load() {
 						desc.timeoutCallback()
 					}
+					desc.flag.Store(true)
 				}
 				return true
 			})
