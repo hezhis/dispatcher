@@ -23,15 +23,12 @@ func (l TestLogger) LogStack(format string, args ...interface{}) {
 func TestDispatcher_Dispatch(t *testing.T) {
 	p := NewDispatcher[int]("test", 10000, &TestLogger{}, NewOption(
 		WithFetchOnce(50),
-		WithAfterLoop(func() { log.Println("after loop") }),
-		WithBeforeLoop(func() { log.Println("before loop") }),
-		WithLoopFunc(func() { log.Println("loop") }),
 	),
 	)
 	p.RegisterHandler(1, Handle)
 
 	go func() {
-		if err := p.Start(); err != nil {
+		if err := p.Start(nil, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 	}()

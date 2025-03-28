@@ -51,7 +51,7 @@ func (d *Dispatcher[T]) Dispatch(id T, args ...interface{}) {
 	}
 }
 
-func (d *Dispatcher[T]) Start() error {
+func (d *Dispatcher[T]) Start(beforeLoop, loop, afterLoop func()) error {
 	err := getMonitor().register(d.name, func() {
 		var errStr = fmt.Sprintf("dispatcher %s may offline. %s", d.name, d.getCurMessage())
 		d.logger.LogError(errStr)
@@ -72,8 +72,8 @@ func (d *Dispatcher[T]) Start() error {
 		}
 	}()
 
-	if nil != d.opts.beforeLoop {
-		d.opts.beforeLoop()
+	if beforeLoop != nil {
+		beforeLoop()
 	}
 
 	doLoopFuncTk := time.NewTicker(d.opts.loopEventProcInterval)
@@ -85,18 +85,18 @@ EndLoop:
 			if !ok {
 				break EndLoop
 			}
-			if d.single([]*message[T]{rec}) {
+			if d.single(loop, []*message[T]{rec}) {
 				break EndLoop
 			}
 		case <-doLoopFuncTk.C:
-			if d.single(nil) {
+			if d.single(loop, nil) {
 				break EndLoop
 			}
 		}
 	}
 
-	if nil != d.opts.afterLoop {
-		d.opts.afterLoop()
+	if afterLoop != nil {
+		afterLoop()
 	}
 
 	return nil
@@ -110,10 +110,12 @@ func (d *Dispatcher[T]) Stop() {
 	d.logger.LogInfo("dispatcher %s stop", d.name)
 }
 
-func (d *Dispatcher[T]) single(list []*message[T]) (exit bool) {
+func (d *Dispatcher[T]) single(loop func(), list []*message[T]) (exit bool) {
 	list, exit = d.fetchQueue(list)
 
-	d.opts.loopFunc()
+	if loop != nil {
+		loop()
+	}
 
 	for _, msg := range list {
 		d.handleMessage(msg)

@@ -7,10 +7,6 @@ type OptionFunc func(*Option)
 type Option struct {
 	fetchOnce int
 
-	loopFunc   func()
-	beforeLoop func()
-	afterLoop  func()
-
 	slowTime              time.Duration
 	batchMessageMaxWait   time.Duration
 	loopEventProcInterval time.Duration
@@ -34,24 +30,6 @@ func NewOption(opts ...OptionFunc) *Option {
 func WithFetchOnce(fetchOnce int) OptionFunc {
 	return func(option *Option) {
 		option.fetchOnce = fetchOnce
-	}
-}
-
-func WithLoopFunc(loopFunc func()) OptionFunc {
-	return func(option *Option) {
-		option.loopFunc = loopFunc
-	}
-}
-
-func WithBeforeLoop(beforeLoop func()) OptionFunc {
-	return func(option *Option) {
-		option.beforeLoop = beforeLoop
-	}
-}
-
-func WithAfterLoop(afterLoop func()) OptionFunc {
-	return func(option *Option) {
-		option.afterLoop = afterLoop
 	}
 }
 
